@@ -1,0 +1,25 @@
+
+Problem Statement: 
+
+The Marketing Manager of a bank would like to know the income bracket of an individual based on certain characteristics so that he can create marketing strategies around income groups.
+
+To automate this process, they have given a problem to identify the income segments ( 2 segments –  One segment with less than or equal to $50K and other segment with greater than $50K) of a group of customers, so that they can specifically target a group based on their income group.
+
+Please conduct descriptive analytics in terms of
+
+Age distribution of customers
+Age group Vs Income
+Education Level distribution
+Education Vs Income
+Work Class distribution
+Work Class Vs Income
+Occupation
+Occupation Vs Income
+Working Class VS Hours Per Week Vs Income
+Race Distribution
+Race Vs Income 
+Male Vs Female
+Male Vs Female and related Income distribution
+ 
+
+Please use confusion matrix and ROC Curve for Model Validation. Precision & Recall Curve, F1 Score
