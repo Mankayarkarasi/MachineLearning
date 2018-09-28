@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Thu Jul 12 10:57:36 2018
+Created on Thu Sep 20 10:57:36 2018
 
 @author: mankayarkarasi.c
 """
@@ -481,10 +481,6 @@ distance (a) and the mean nearest-cluster distance (b) for each sample.
  
 # It is found that n=4 is the number of clusters as per the Elbow method
 
-train_Data.columns 
-
-train_Data['gross'] = train_Data['gross'].astype(str)
-
 #K means Clustering  
 parameter_columns = train_Data[['num_critic_for_reviews','duration','director_facebook_likes','actor_2_facebook_likes','actor_3_facebook_likes','cast_total_facebook_likes','num_user_for_reviews','budget','imdb_score','movie_facebook_likes','total_fb_likes','number_of_genres']]
  
@@ -573,21 +569,31 @@ colors = ['#705898', '#F08030']
 
 sns.scatterplot(x="num_critic_for_reviews", y="num_user_for_reviews", hue = 'Clusters', palette = colors, data=train_Data)
 
-sns.scatterplot(x="gross", y="budget",hue = 'Clusters', palette=colors,  data=train_Data)
+#sns.scatterplot(x="gross", y="budget", hue = 'Clusters', palette=colors,  data=train_Data)
 
-sns.scatterplot(x="imdb_score", y="num_critic_for_reviews",hue = 'Clusters', palette=colors,  data=train_Data)
+sns.scatterplot(x="imdb_score", y="num_critic_for_reviews", hue = 'Clusters', palette=colors,  data=train_Data)
 
-sns.scatterplot(x="imdb_score", y="num_user_for_reviews",hue = 'Clusters', palette=colors,  data=train_Data)
+sns.scatterplot(x="imdb_score", y="num_user_for_reviews", hue = 'Clusters', palette=colors,  data=train_Data)
 
-sns.scatterplot(x="imdb_score", y="total_fb_likes",hue = 'Clusters', palette=colors,  data=train_Data)
+sns.scatterplot(x="imdb_score", y="total_fb_likes", hue = 'Clusters', palette=colors,  data=train_Data)
 
-sns.scatterplot(x="gross", y="total_fb_likes",hue = 'Clusters', palette=colors,  data=train_Data)
+#sns.scatterplot(x="gross", y="total_fb_likes", hue = 'Clusters', palette=colors,  data=train_Data)
 
-score = train_Data[['imdb_score','duration','total_fb_likes','num_user_for_reviews','gross','Clusters']]
+score = train_Data[['imdb_score','duration','total_fb_likes','num_user_for_reviews','Clusters']]
             
 score = score.groupby('Clusters', as_index = False).mean()
 
-#score value is
+score.transpose()
+
+"""
+Score details:
+                                 0             1
+Clusters                  0.000000      1.000000
+imdb_score                6.325942      7.145455
+duration                104.975673    125.036364
+total_fb_likes        16402.833684  99068.770248
+num_user_for_reviews    194.123743    811.049587
+"""
 
 
 from sklearn.metrics.pairwise import euclidean_distances
@@ -595,17 +601,10 @@ from sklearn.metrics.pairwise import euclidean_distances
 dunk = dunn(y_kmeans, euclidean_distances(test_Data))
 
 print(dunk)
-
-#dunk value is .988
 	
-	
-	
-	
-	
-	
-	
-	
-	
+"""
+Dunk value is .988 
+"""	
 	
 	
 	
