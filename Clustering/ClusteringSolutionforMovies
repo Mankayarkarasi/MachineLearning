@@ -1,0 +1,612 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Thu Jul 12 10:57:36 2018
+
+@author: mankayarkarasi.c
+"""
+
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import statistics
+from numpy import median
+import warnings
+warnings.filterwarnings('ignore')
+from pylab import rcParams
+%matplotlib inline
+
+import seaborn as sns
+sns.set(rc={'figure.figsize':(11,7)})
+
+
+from sklearn.preprocessing import StandardScaler  # For scaling dataset
+from sklearn.cluster import KMeans, AgglomerativeClustering, AffinityPropagation #For clustering
+from sklearn.mixture import GaussianMixture #For GMM clustering
+
+
+
+def ReadCSVFile(file_Path):
+	data = pd.read_csv(file_Path)
+	return data
+
+def FillNAValueMode(column_list, t_dataset):
+	for c in column_list:
+		t_dataset[c].fillna(t_dataset[c].mode()[0],inplace=True)
+	return t_dataset 
+
+
+def FillNAValueMedian(column_list, t_dataset):
+	for c in column_list:
+		t_dataset[c].fillna(t_dataset[c].median(),inplace=True)
+	return t_dataset 
+
+
+	
+def MissigdataPercent(train_Data):
+	total = train_Data.isnull().sum().sort_values(ascending=False)
+	percent = (train_Data.isnull().sum()/train_Data.isnull().count()).sort_values(ascending=False)
+	missing_data = pd.concat([total, percent], axis=1, keys=['Total', 'Percent'])
+	return missing_data.head(5) 
+
+def Plotkdeplot(t_dataset,xaxis_col,yaxis_col, category1,category2):
+	# cast_total_facebook_likes distibution 
+	g = sns.kdeplot(t_dataset[xaxis_col][(t_dataset[category1] == 0) ], color="Red", shade = True)
+	g = sns.kdeplot(t_dataset[xaxis_col][(t_dataset[category1] == 1) ], ax =g, color="Blue", shade= True)
+	g.set_xlabel(xaxis_col)
+	g.set_ylabel(yaxis_col)
+	g = g.legend([category2,category1])
+	
+def doKmeans(X, nclust=2):
+    model = KMeans(nclust)
+    model.fit(X)
+    clust_labels = model.predict(X)
+    cent = model.cluster_centers_
+    return (clust_labels, cent)
+
+def doAgglomerative(X, nclust=2):
+    model = AgglomerativeClustering(n_clusters=nclust, affinity = 'euclidean', linkage = 'ward')
+    clust_labels1 = model.fit_predict(X)
+    return (clust_labels1)
+
+def doAffinity(X):
+    model = AffinityPropagation(damping = 0.5, max_iter = 250, affinity = 'euclidean')
+    model.fit(X)
+    clust_labels2 = model.predict(X)
+    cent2 = model.cluster_centers_
+    return (clust_labels2, cent2)
+
+def doGMM(X, nclust=2):
+    model = GaussianMixture(n_components=nclust,init_params='kmeans')
+    model.fit(X)
+    clust_labels3 = model.predict(X)
+    return (clust_labels3)
+
+
+def normalize_to_smallest_integers(labels):
+    """Normalizes a list of integers so that each number is reduced to the minimum possible integer, maintaining the order of elements.
+    :param labels: the list to be normalized
+    :returns: a numpy.array with the values normalized as the minimum integers between 0 and the maximum possible value.
+    """
+
+    max_v = len(set(labels)) if -1 not in labels else len(set(labels)) - 1
+    sorted_labels = np.sort(np.unique(labels))
+    unique_labels = range(max_v)
+    new_c = np.zeros(len(labels), dtype=np.int32)
+
+    for i, clust in enumerate(sorted_labels):
+        new_c[labels == clust] = unique_labels[i]
+
+    return new_c
+
+def dunn(labels, distances):
+    """
+    Dunn index for cluster validation (the bigger, the better)
+    
+    .. math:: D = \\min_{i = 1 \\ldots n_c; j = i + 1\ldots n_c} \\left\\lbrace \\frac{d \\left( c_i,c_j \\right)}{\\max_{k = 1 \\ldots n_c} \\left(diam \\left(c_k \\right) \\right)} \\right\\rbrace
+    
+    where :math:`d(c_i,c_j)` represents the distance between
+    clusters :math:`c_i` and :math:`c_j`, given by the distances between its
+    two closest data points, and :math:`diam(c_k)` is the diameter of cluster
+    :math:`c_k`, given by the distance between its two farthest data points.
+    
+    The bigger the value of the resulting Dunn index, the better the clustering
+    result is considered, since higher values indicate that clusters are
+    compact (small :math:`diam(c_k)`) and far apart.
+    :param labels: a list containing cluster labels for each of the n elements
+    :param distances: an n x n numpy.array containing the pairwise distances between elements
+    
+    .. [Kovacs2005] Kovács, F., Legány, C., & Babos, A. (2005). Cluster validity measurement techniques. 6th International Symposium of Hungarian Researchers on Computational Intelligence.
+    """
+
+    labels = normalize_to_smallest_integers(labels)
+
+    unique_cluster_distances = np.unique(min_cluster_distances(labels, distances))
+    max_diameter = max(diameter(labels, distances))
+
+    if np.size(unique_cluster_distances) > 1:
+        return unique_cluster_distances[1] / max_diameter
+    else:
+        return unique_cluster_distances[0] / max_diameter
+
+
+def min_cluster_distances(labels, distances):
+    """Calculates the distances between the two nearest points of each cluster.
+    :param labels: a list containing cluster labels for each of the n elements
+    :param distances: an n x n numpy.array containing the pairwise distances between elements
+    """
+    labels = normalize_to_smallest_integers(labels)
+    n_unique_labels = len(np.unique(labels))
+
+    min_distances = np.zeros((n_unique_labels, n_unique_labels))
+    for i in np.arange(0, len(labels) - 1):
+        for ii in np.arange(i + 1, len(labels)):
+            if labels[i] != labels[ii] and distances[i, ii] > min_distances[labels[i], labels[ii]]:
+                min_distances[labels[i], labels[ii]] = min_distances[labels[ii], labels[i]] = distances[i, ii]
+    return min_distances
+
+
+def diameter(labels, distances):
+    """Calculates cluster diameters (the distance between the two farthest data points in a cluster)
+    :param labels: a list containing cluster labels for each of the n elements
+    :param distances: an n x n numpy.array containing the pairwise distances between elements
+    :returns:
+    """
+    labels = normalize_to_smallest_integers(labels)
+    n_clusters = len(np.unique(labels))
+    diameters = np.zeros(n_clusters)
+
+    for i in np.arange(0, len(labels) - 1):
+        for ii in np.arange(i + 1, len(labels)):
+            if labels[i] == labels[ii] and distances[i, ii] > diameters[labels[i]]:
+                diameters[labels[i]] = distances[i, ii]
+    return diameters
+
+
+
+file_Path = 'C:\\Users\\mankayarkarasi.c\\Desktop\\AIML\\Wk14\\movie_metadata.csv'
+train_Data = ReadCSVFile(file_Path)
+test_Data = train_Data.copy()
+original_Data = train_Data.copy()
+
+
+"""TrainSet.describe(include=['object'])"""
+#===============================
+#2.Data Cleaning for Train
+#===============================
+
+print(train_Data.shape)
+
+print(train_Data.info())
+
+description = train_Data.describe()
+
+print(train_Data.isnull().sum())
+
+train_Data.apply(lambda x: len(x.unique()))
+
+#Get Top missing values
+MissigdataPercent(train_Data)
+
+""" As the percentage is very less 17% - no data column needs to be dropped"""
+
+sns.boxplot(x=train_Data["budget"])
+
+for c in ['gross', 'budget']:
+    train_Data[c].fillna(train_Data[c].median(), inplace = True)
+
+#Pirates of Carribean is most expensive movie so others are outliers
+train_Data = train_Data[train_Data['budget'] <= 300000000 ]
+
+#Fill mode value for numerical datatype that has nan value
+
+column_list = ['color','title_year','content_rating']
+FillNAValueMode(column_list, train_Data)
+
+#Fill median value for numerical datatype that has nan value
+
+column_list = ['director_facebook_likes','actor_1_facebook_likes','actor_2_facebook_likes','actor_3_facebook_likes','cast_total_facebook_likes','movie_facebook_likes','num_critic_for_reviews','duration','aspect_ratio','num_user_for_reviews','num_voted_users']
+FillNAValueMedian(column_list, train_Data)
+
+
+print(train_Data.isnull().sum())
+train_Data.describe(include=['O']).transpose()
+
+# Hypothesis:
+
+#Amazon will pay higher amount if director_facebook_likes is more
+#Amazon will pay higher amount if movie_facebook_likes is more
+#Amazon will pay higher amount if cast_total_facebook_likes is more
+#Amazon will pay higher amount if it the profit is more
+#Amazon will pay higher amount if num_voted_users is more
+#Amazon will pay higher amount if num_user_for_reviews is more
+#Amazon will pay higher amount if imdb_score is more
+
+"""
+train_Data.describe().transpose()
+"""
+#Aspect Ratio Maximum Standard is 2.76 
+
+train_Data = train_Data[train_Data['aspect_ratio'] <=  2.76]
+
+train_Data['total_fb_likes'] = train_Data['director_facebook_likes'] + train_Data['actor_1_facebook_likes'] + train_Data['actor_2_facebook_likes'] + train_Data['actor_3_facebook_likes'] + train_Data['cast_total_facebook_likes'] + train_Data['movie_facebook_likes'] 
+
+train_Data['number_of_genres'] = train_Data['genres'].str.split('|').apply(lambda x : len(x))
+
+
+train_Data_genres = train_Data.copy()
+#Splitting Genres
+s = train_Data_genres['genres'].str.split('|').apply(pd.Series, 1).stack()
+s.index = s.index.droplevel(-1)
+s.name = 'genres'
+del train_Data_genres['genres']
+train_Data_genres = train_Data_genres.join(s)
+
+
+
+#=============================== Genre Count ==================================
+
+train_Data_genres['genres'].unique()
+
+genre_count = (pd.DataFrame(train_Data_genres.groupby('genres').movie_title.nunique())).sort_values('movie_title', ascending=False )
+
+genre_count.reset_index(inplace = True)
+
+plt.figure(figsize = (10,10))
+sns.catplot(x="movie_title", y= "genres",
+                 data=genre_count, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None)
+
+           
+""" We Observe that Drama, Comedy and Thriller are highest number of movies"""
+#=============================== Profitable ===================================
+genre_data = train_Data_genres[['movie_title','imdb_score',
+                                'gross', 'duration', 'total_fb_likes','num_user_for_reviews',
+                                'genres','num_voted_users','num_critic_for_reviews']]
+
+genre_data = genre_data.groupby('genres', as_index = False).mean()
+
+genre_data.sort_values('gross', ascending=False, inplace = True )
+
+sns.catplot(x="gross", y="genres",
+                 data=genre_data, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+            
+""" We Observe that Animation and Adventure are the highest grossing genres 
+    whereas Documentary, Short and Film-Noir are lowest grossing genres"""
+
+
+#=============================== FB Likes =====================================
+
+genre_data.sort_values('total_fb_likes', ascending=False, inplace = True )            
+            
+sns.catplot(x="total_fb_likes", y="genres",
+                 data=genre_data, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+
+"""We observe that Adventure, Sci-Fi and Action have more FB Likes, 
+    and from the gross we observed that Animation and Adventure are highest grossing.
+    But the FB likes for Animation genres are not too high, maybe its because people who
+    watch animation movies are not too high on FB whereas people who watch adventure 
+    and sci fi movies are very active on FB"""
+
+#=============================== IMDB Score ===================================
+
+genre_data.sort_values('imdb_score', ascending=False, inplace = True )
+
+sns.catplot(x="imdb_score", y="genres",
+                 data=genre_data, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+            
+""" But here we see that Film Noir, News and Documentary are highest rated 
+    and Game-Show, Reality-TV are lowest rated.
+    But Film Noir, News and Documentary are one the lower grossing genres.
+    May be due to that quality wise, these are excellent movies but may be 
+    boring so grossing also would be low. """
+
+
+#============================ Avg Duration ====================================
+
+genre_data.sort_values('duration', ascending=False, inplace = True )
+            
+sns.catplot(x="duration", y="genres",
+                 data=genre_data, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+            
+
+#=============================== Years ========================================
+                
+year_buckets = np.array([1915,1950,1966,1976,1986,1996,2006,2016])
+train_Data['year_ranges']= pd.cut(np.array(train_Data['title_year']), year_buckets)
+
+sns.countplot(x="year_ranges", data=train_Data)
+
+#=============================== Years V Score ================================
+
+across_years_ranges = train_Data[['imdb_score','num_critic_for_reviews',
+                                  'gross','duration','num_user_for_reviews',
+                                  'total_fb_likes', 'year_ranges']]
+            
+across_years_ranges = across_years_ranges.groupby('year_ranges', as_index = False).mean()
+
+across_years_ranges.sort_values('imdb_score', ascending=False, inplace = True )
+
+sns.catplot(x="year_ranges", y="imdb_score",
+                 data=across_years_ranges, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+
+"""We Observe that the Quality of movies are decreasing """
+
+#=============================== Gross ========================================
+across_years_ranges.sort_values('gross', ascending=False, inplace = True )
+
+sns.catplot(x="year_ranges", y="gross",
+                 data=across_years_ranges, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+            
+""" We observe an increasing trend till 1996 and then the movie goers have reduced and then increased
+We see that the most profitable time for movies are during 1986 - 1996""" 
+
+#=============================== Length =======================================  
+
+across_years_ranges.sort_values('duration', ascending=False, inplace = True )
+
+sns.catplot(x="year_ranges", y="duration",
+                 data=across_years_ranges, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+            
+"""We Observe that the Length of the movies are decreasing. 
+Maybe because people in this age prefer shorter movies """     
+
+#=============================== Years V Reviews ================================  
+
+sns.catplot(x="year_ranges", y="num_critic_for_reviews",
+                 data=across_years_ranges, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+            
+sns.catplot(x="year_ranges", y="num_user_for_reviews",
+                 data=across_years_ranges, kind="bar",sharex = False,
+                 height=5, aspect=2, ci=None);
+            
+#=============================== Reviews =======================================
+           
+sns.lmplot(x="num_user_for_reviews", y="total_fb_likes",
+                data=train_Data[(train_Data['total_fb_likes'] < 400000) & 
+                                (train_Data['num_user_for_reviews'] < 3000)])
+
+
+sns.lmplot(x="gross", y="total_fb_likes",
+                data = train_Data)     
+            
+sns.lmplot(x="gross", y="num_user_for_reviews",
+                data = train_Data[(train_Data['num_user_for_reviews'] < 4000) & (train_Data['gross'] < 300000000)])     
+            
+     
+#train_Data.drop(fb_likes, axis = 1, inplace = True)
+
+#Drop Demographics
+train_Data.drop(['director_name', 'actor_1_name', 'actor_2_name', 'actor_3_name', 'country',
+                 'color', 'genres', 'movie_imdb_link', 'plot_keywords', 'movie_title', 'title_year', 'facenumber_in_poster',
+                 'language', 'content_rating', 'year_ranges', 'aspect_ratio'], axis = 1, inplace = True)
+
+
+
+plt.figure(figsize = (10,8))
+g = sns.heatmap(train_Data[list(train_Data)].corr(),annot=True, fmt = ".2f", cmap = "coolwarm",linewidths= 0.01)
+
+# It seems num_user_for_reviews and num_voted_users are highly positive correlated
+# It seems movie_facebook_likes and num_critic_for_reviews  are highly positively correlated
+# It seems total_fb_likes and cast_total_facebook likes are highly positively correlated
+# It seems actor_1_facebook_lies and cast_total_facebook likes are highly positively correlated
+
+#positive corelation graph
+plt.figure(figsize = (10,10))
+sns.jointplot(x="num_user_for_reviews", y="num_voted_users", data=train_Data)
+
+plt.figure(figsize = (10,10))
+sns.jointplot(x="movie_facebook_likes", y="num_critic_for_reviews", data=train_Data)
+
+#negative corelation graph
+plt.figure(figsize = (10,10))
+sns.jointplot(x="total_fb_likes", y="cast_total_facebook_likes", data=train_Data)
+
+plt.figure(figsize = (10,10))
+sns.jointplot(x="cast_total_facebook_likes", y="actor_1_facebook_likes", data=train_Data)
+
+train_Data.drop(['num_voted_users'], axis = 1, inplace = True)
+train_Data.drop(['actor_1_facebook_likes'], axis = 1, inplace = True)
+
+train_Data.drop_duplicates(inplace = True) 
+
+
+#Scaling of data
+
+X = train_Data.copy().values
+
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
+
+test_Data = sc.fit_transform(X)
+
+"""
+As per the Elbow method, Value 2 seems to be promising, so working with 2 as the data.
+However, using silhouette_score to verify the cluster value
+"""
+
+
+wcss = []
+for i in range(1,11):
+    kmeans = KMeans(n_clusters = i, init = 'k-means++', max_iter= 300, n_init = 10, random_state = 0)
+    kmeans.fit(test_Data)
+    wcss.append(kmeans.inertia_)
+plt.plot(range(1,11), wcss)
+plt.title("The Elbow Method")
+plt.xlabel("Number of clusters")
+plt.ylabel("WCSS")
+plt.show()
+
+
+
+"""The within-cluster sum of squares(WCSS) is a measure of the variability of the 
+   observations within each cluster.
+   
+   In general, a cluster that has a small sum of squares 
+   is more compact than a cluster that has a large sum of squares.
+   
+   Each observation is allocated to the closest cluster, and the 
+   distance between an observation and a cluster is calculated
+"""
+
+# Using the silhouette score to find the optimal number of clusters
+from sklearn.metrics import silhouette_score
+for n_cluster in range(2, 11):
+    kmeans = KMeans(n_clusters=n_cluster, random_state = 42).fit(test_Data)
+    label = kmeans.labels_
+    sil_coeff = silhouette_score(test_Data, label, metric='euclidean')
+    print("For n_clusters={}, The Silhouette Coefficient is {}".format(n_cluster, sil_coeff))
+
+"""
+The Silhouette Coefficient is calculated using the mean intra-cluster 
+distance (a) and the mean nearest-cluster distance (b) for each sample.
+ 
+ The Silhouette Coefficient for a sample is (b - a) / max(a, b)
+ 
+ b is the distance between a sample and the nearest cluster that the
+ sample is not a part of
+ 
+ The best value is 1 and the worst value is -1. 
+ Values near 0 indicate overlapping clusters
+ 
+ Negative values generally indicate that a sample has been assigned to the wrong cluster
+ """
+ 
+# It is found that n=4 is the number of clusters as per the Elbow method
+
+train_Data.columns 
+
+train_Data['gross'] = train_Data['gross'].astype(str)
+
+#K means Clustering  
+parameter_columns = train_Data[['num_critic_for_reviews','duration','director_facebook_likes','actor_2_facebook_likes','actor_3_facebook_likes','cast_total_facebook_likes','num_user_for_reviews','budget','imdb_score','movie_facebook_likes','total_fb_likes','number_of_genres']]
+ 
+clust_labels, cent = doKmeans(parameter_columns, 2)
+kmeans = pd.DataFrame(clust_labels)
+parameter_columns.insert((parameter_columns.shape[1]),'kmeans',kmeans)
+
+#Plot the clusters obtained using k means
+fig = plt.figure()
+ax = fig.add_subplot(111)
+scatter = ax.scatter(parameter_columns['movie_facebook_likes'],parameter_columns['num_user_for_reviews'],
+                     c=kmeans[0],s=50)
+ax.set_title('K-Means Clustering')
+ax.set_xlabel('Movie Facebook Likes')
+ax.set_ylabel('Number of User Reviews')
+plt.colorbar(scatter)
+
+
+#Agglomerative Clustering
+parameter_columns = train_Data[['num_critic_for_reviews','duration','director_facebook_likes','actor_2_facebook_likes','actor_3_facebook_likes','cast_total_facebook_likes','num_user_for_reviews','budget','imdb_score','movie_facebook_likes','total_fb_likes','number_of_genres']]
+
+clust_labels1 = doAgglomerative(parameter_columns, 2)
+agglomerative = pd.DataFrame(clust_labels1)
+parameter_columns.insert((parameter_columns.shape[1]),'agglomerative',agglomerative)
+
+#Plot the clusters obtained using Agglomerative clustering or Hierarchical clustering
+fig = plt.figure()
+ax = fig.add_subplot(111)
+scatter = ax.scatter(parameter_columns['movie_facebook_likes'],parameter_columns['num_user_for_reviews'],
+                     c=agglomerative[0],s=50)
+ax.set_title('Agglomerative Clustering')
+ax.set_xlabel('Movie Facebook Likes')
+ax.set_ylabel('Number of User Reviews')
+plt.colorbar(scatter)
+
+
+#Affinity propogation algorithm
+parameter_columns = train_Data[['num_critic_for_reviews','duration','director_facebook_likes','actor_2_facebook_likes','actor_3_facebook_likes','cast_total_facebook_likes','num_user_for_reviews','budget','imdb_score','movie_facebook_likes','total_fb_likes','number_of_genres']]
+
+clust_labels2, cent2 = doAffinity(parameter_columns)
+affinity = pd.DataFrame(clust_labels2)
+parameter_columns.insert((parameter_columns.shape[1]),'affinity',affinity)
+
+#Plotting the cluster obtained using Affinity algorithm
+fig = plt.figure()
+ax = fig.add_subplot(111)
+scatter = ax.scatter(parameter_columns['movie_facebook_likes'],parameter_columns['num_user_for_reviews'],
+                     c=affinity[0],s=50)
+ax.set_title('Affinity Clustering')
+ax.set_xlabel('Movie Facebook Likes')
+ax.set_ylabel('Number of User Reviews')
+plt.colorbar(scatter)
+
+#Guassian Mixture Modelling
+parameter_columns = train_Data[['num_critic_for_reviews','duration','director_facebook_likes','actor_2_facebook_likes','actor_3_facebook_likes','cast_total_facebook_likes','num_user_for_reviews','budget','imdb_score','movie_facebook_likes','total_fb_likes','number_of_genres']]
+
+clust_labels3 = doGMM(parameter_columns,2)
+gmm = pd.DataFrame(clust_labels3)
+parameter_columns.insert((parameter_columns.shape[1]),'gmm',gmm)
+
+#Plotting the cluster obtained using GMM
+fig = plt.figure()
+ax = fig.add_subplot(111)
+scatter = ax.scatter(parameter_columns['movie_facebook_likes'],parameter_columns['num_user_for_reviews'],
+                     c=gmm[0],s=50)
+ax.set_title('GMM Mixture Model')
+ax.set_xlabel('Movie Facebook Likes')
+ax.set_ylabel('Number of User Reviews')
+plt.colorbar(scatter)
+
+
+
+#Applying K-means to the mall dataset
+kmeans = KMeans(n_clusters = 2, init = 'k-means++', max_iter= 300, n_init = 10, random_state = 0)
+y_kmeans = kmeans.fit_predict(test_Data)
+
+##The answer is Amazon needs to categorise 2 clusters and pay them accordingly. 
+unique, counts = np.unique(y_kmeans, return_counts=True)
+dict(zip(unique, counts))
+         
+train_Data['Clusters'] = y_kmeans
+
+
+colors = ['#705898', '#F08030']
+
+
+sns.scatterplot(x="num_critic_for_reviews", y="num_user_for_reviews", hue = 'Clusters', palette = colors, data=train_Data)
+
+sns.scatterplot(x="gross", y="budget",hue = 'Clusters', palette=colors,  data=train_Data)
+
+sns.scatterplot(x="imdb_score", y="num_critic_for_reviews",hue = 'Clusters', palette=colors,  data=train_Data)
+
+sns.scatterplot(x="imdb_score", y="num_user_for_reviews",hue = 'Clusters', palette=colors,  data=train_Data)
+
+sns.scatterplot(x="imdb_score", y="total_fb_likes",hue = 'Clusters', palette=colors,  data=train_Data)
+
+sns.scatterplot(x="gross", y="total_fb_likes",hue = 'Clusters', palette=colors,  data=train_Data)
+
+score = train_Data[['imdb_score','duration','total_fb_likes','num_user_for_reviews','gross','Clusters']]
+            
+score = score.groupby('Clusters', as_index = False).mean()
+
+#score value is
+
+
+from sklearn.metrics.pairwise import euclidean_distances
+
+dunk = dunn(y_kmeans, euclidean_distances(test_Data))
+
+print(dunk)
+
+#dunk value is .988
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
