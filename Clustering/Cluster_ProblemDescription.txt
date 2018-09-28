@@ -1,0 +1,78 @@
+Problem Statement: 
+
+The database consists of around 5000 movie details. It has 28 different attributes listed below in the data section.
+
+ 
+Problem
+
+Amazon wants to buy popular movies for its prime video division and for that it needs your help in identifying most popular movies and divide them into various clusters so that they can pay a certain amount based on the cluster type i.e., they want to pay the most to those clusters of movies which are very popular and least amount to which are not so popular. You can consider the attributes like director Facebook likes, movie likes, actor likes, budget and gross etc. in determining popularity of the movies and assign them to various clusters.
+
+ 
+Data:
+
+ 
+
+Below are the 28 variables:
+
+“movie_title”
+
+“color”
+
+“num_critic_for_reviews”
+
+“movie_facebook_likes”
+
+“duration”
+
+“director_name”
+
+“director_facebook_likes”
+
+“actor_3_name”
+
+“actor_3_facebook_likes”
+
+“actor_2_name”
+
+“actor_2_facebook_likes”
+
+“actor_1_name”
+
+“actor_1_facebook_likes”
+
+“gross”
+
+“genres”
+
+ “num_voted_users”
+
+“cast_total_facebook_likes”
+
+“facenumber_in_poster”
+
+“plot_keywords”
+
+“movie_imdb_link”
+
+“num_user_for_reviews”
+
+“language”
+
+“country”
+
+ “content_rating”
+
+“budget”
+
+“title_year”
+
+“imdb_score”
+
+“aspect_ratio”
+
+ 
+ 
+•Please Perform Descriptive Analytics
+•Please Perform Model Validation
+
+
